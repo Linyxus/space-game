@@ -20,13 +20,13 @@
 (defn reset-transforms
   "Clears all transformations."
   [ctx]
-  (.transform ctx 1 0 0 1 0 0))
+  (.setTransform ctx 1 0 0 1 0 0))
 
 (defn reset-canvas
   "Clears the canvas and reset transformations."
   [info]
-  (clear-canvas info)
-  (reset-transforms info))
+  (reset-transforms (:ctx info))
+  (clear-canvas info))
 
 (defn rgba
   "Transforms the values into rgba string."
@@ -45,7 +45,6 @@
   (reset-canvas info)
   (let [{:keys [width height ctx]} info]
     (coloring ctx color)
-    ;(color ctx color)
     (.fillRect ctx 0 0 width height)))
 
 (defn fill-rect

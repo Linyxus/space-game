@@ -1,7 +1,8 @@
 goog.addDependency("base.js", ['goog'], []);
 goog.addDependency("../cljs/core.js", ['cljs.core'], ['goog.string', 'goog.object', 'goog.math.Integer', 'goog.string.StringBuffer', 'goog.array', 'goog.math.Long']);
 goog.addDependency("../space/drawer.js", ['space.drawer'], ['cljs.core']);
-goog.addDependency("../space/game.js", ['space.game'], ['cljs.core', 'space.drawer']);
+goog.addDependency("../space/calc.js", ['space.calc'], ['cljs.core']);
+goog.addDependency("../space/game.js", ['space.game'], ['cljs.core', 'space.drawer', 'space.calc']);
 goog.addDependency("../space/core.js", ['space.core'], ['space.game', 'cljs.core', 'space.drawer']);
 goog.addDependency("../cljs/core/async/impl/protocols.js", ['cljs.core.async.impl.protocols'], ['cljs.core']);
 goog.addDependency("../cljs/core/async/impl/buffers.js", ['cljs.core.async.impl.buffers'], ['cljs.core', 'cljs.core.async.impl.protocols']);
@@ -55,5 +56,4 @@ goog.addDependency("../devtools/formatters/core.js", ['devtools.formatters.core'
 goog.addDependency("../devtools/formatters.js", ['devtools.formatters'], ['devtools.formatters.core', 'devtools.util', 'cljs.core', 'goog.labs.userAgent.browser', 'devtools.context', 'devtools.prefs']);
 goog.addDependency("../devtools/hints.js", ['devtools.hints'], ['cljs.stacktrace', 'cljs.core', 'devtools.context', 'devtools.prefs']);
 goog.addDependency("../devtools/core.js", ['devtools.core'], ['devtools.toolbox', 'devtools.util', 'cljs.core', 'devtools.async', 'devtools.formatters', 'devtools.hints', 'devtools.defaults', 'devtools.prefs']);
-goog.addDependency("../space/calc.js", ['space.calc'], ['cljs.core']);
 goog.addDependency("../devtools/preload.js", ['devtools.preload'], ['cljs.core', 'devtools.core', 'devtools.prefs']);

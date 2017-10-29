@@ -27,11 +27,19 @@
 
 (game/init-coord! (:width cvs-info) (:height cvs-info))
 
+
 (js/setInterval #(do
-                   (drawer/clear-canvas cvs-info)
+                   (drawer/reset-canvas cvs-info)
                    (drawer/render-data ctxt
-                                      (game/render (drawer/now))
-                                      drawer/std-revealer)) 10)
+                                       (game/render (drawer/now))
+                                       drawer/std-revealer)) 10)
+
+;;(drawer/coloring ctxt "#1a237e")
+;;(drawer/draw-circle ctxt 100 100 10)
+;;(drawer/rotating ctxt 0.7853 100 100)
+;;(drawer/draw-shape ctxt [-30 -20] [30 -20] [30 20] [-30 20])
+;;(drawer/reset-transforms)
+;;(drawer/draw-shape ctxt [80 80] [120 80] [120 120] [80 120])
 
 (defn handle-click
   "Handles the click event."
