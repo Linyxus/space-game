@@ -27,8 +27,8 @@
 (def planets (atom []))
 
 (def simple-map {:planets [{:x 0.5, :y 0.5, :r 0.05, :m 10, :color [0 255 255 1]}]
-                 :craft [{:x 0.1, :y 0.1, :m 10,
-                          :v [0.01 0.01], :a [0.01 -0.01]}]})
+                 :craft [{:x 0.4, :y 0.6, :m 10,
+                          :v [0.15 0], :a [-0.04 -0.015]}]})
 
 (def coord-orig->frame nil)
 (def coord-frame->orig nil)
@@ -215,12 +215,14 @@
                   :rotation (rotation-wrapper {:angle v-angle, :cx x, :cy y}),
                   :color "#1a237e"})
                 {:type :circle,
-                 :args (normal-arg-wrapper x y 0.005)
+                 :args (normal-arg-wrapper x y 0.01)
                  :rotation nil
                  :color "white"}]
           num (if (> (rand) 0.80) 1 0)
-          partitions (partitions-generator x y 0.002 0.002
-                                           (calc/vec- (calc/vec* 2 v)) 1000 num)]
+          partitions (partitions-generator x y 0.01 0.0025
+                                           (calc/vec- (calc/vec* 1 v))
+                                           800
+                                           num)]
       (add-temp-animators partitions)
       ship)))
 
@@ -235,6 +237,21 @@
 
 ;;(create-planet 0.5 0.5 0.1 [0 255 255 1])
 
+(defn normal-update-each
+  "Returns the updated status of given craft data."
+  [interval data]
+  (let [{:keys [x y v a]} data
+        sec (/ interval 1000)
+        vv (calc/vec+ v (calc/vec* sec a))
+        [dx dy] (calc/vec* sec vv)
+        [xx yy] (calc/vec+ [dx dy] [x y])]
+    (assoc data :v vv :x xx :y yy)))
+
+(defn normal-updater
+  "The data updater agent for the craft animator."
+  [interval]
+  (swap! craft-status (fn [data] (map (partial normal-update-each interval) data))))
+
 (defn initialize-by-map!
   "Initializes with map data given."
   [data]
@@ -243,7 +260,7 @@
   (let [planets (:planets data)]
     (doseq [{:keys [x y r color]} planets]
       (create-planet x y r color)))
-  (let [craft (craft-animator #(first (deref craft-status)) (fn [& x] nil))]
+  (let [craft (craft-animator #(first (deref craft-status)) normal-updater)]
     (add-animator craft)))
 
 (initialize-by-map! simple-map)
@@ -252,7 +269,7 @@
   "Returns render data of each animator."
   [{:keys [animator initial]} timestamp]
   (let [duration (- timestamp initial)
-        interval (- timestamp prev-timestamp)
+        interval (- timestamp @prev-timestamp)
         data (animator duration interval)]
     data))
 
@@ -267,13 +284,13 @@
 (defn render
   "Updates current state and return render data for rendering."
   [timestamp]
-  (when (= prev-timestamp -1)
-    (set! prev-timestamp timestamp))
+  (when (= @prev-timestamp -1)
+    (swap! prev-timestamp (fn [_] timestamp)))
   (let [res (map render-each @animators (repeat timestamp))
         ret (reduce concat res)
         tmp-res (map render-each @temp-animators (repeat timestamp))
         tmp-ret (reduce concat tmp-res)]
-    (set! prev-timestamp timestamp)
+    (swap! prev-timestamp (fn [_] timestamp))
     (swap! temp-animators (partial filter-animators tmp-res))
     (concat ret tmp-ret)))
 
