@@ -148,6 +148,18 @@
       :rotation nil
       :color (apply drawer/rgba color)}]))
 
+;; TODO An animator has to render recording to changing status instead of fixed values
+;; So change the functions to receive functions in place of values
+
+(defn create-planet
+  "Creates and add a planet."
+  [x y r color]
+  (add-animators (planet-animator x y r color)
+                 (planet-waves-animator x y
+                                        r (* r 2)
+                                        2500
+                                        (take 3 color))))
+
 (defn partition-animator
   "Returns an animator displaying a moving partition."
   [x y r color end-x end-y duration]
@@ -225,15 +237,6 @@
                                            num)]
       (add-temp-animators partitions)
       ship)))
-
-(defn create-planet
-  "Creates and add a planet."
-  [x y r color]
-  (add-animators (planet-animator x y r color)
-                 (planet-waves-animator x y
-                                        r (* r 2)
-                                        2500
-                                        (take 3 color))))
 
 ;;(create-planet 0.5 0.5 0.1 [0 255 255 1])
 
