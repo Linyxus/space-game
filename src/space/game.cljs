@@ -14,11 +14,8 @@
 
 ;; An animator must returns a seq of render datas to be displayed.
 ;; The meaning of an animator is more than some animation executors,
-;; it can perform game data update and calculation as well,
-;; even add other animator is recommended.
-;; Because animators actually consist of some main role animations,
-;; and many one-time effects produced is in temp-animators, will be cleared once
-;; returning nil.
+;; it can perform game data update and calculation as well.
+;; It can even yields no rendering datas.
 
 (def prev-timestamp (atom -1))
 (def animators (atom []))
@@ -116,15 +113,16 @@
   [& ani]
   (doall (map add-animator ani)))
 
-(defn add-temp-animator
-  "Adds an animator to temp-animators."
-  [animator]
-  (let [item {:animator animator, :initial (drawer/now)}]
-    (swap! temp-animators #(conj % item))))
+(defn gen-animator
+  [ani]
+  "Returns a map of paired animator and timestamp."
+  {:animator ani,
+   :initial (drawer/now)})
 
-(defn add-temp-animators
+(defn gen-animators
   [anis]
-  (doall (map add-temp-animator anis)))
+  "Returns a lazy seq of maps pairing animators with timestamp."
+  (map gen-animator anis))
 
 (defn planet-waves-animator
   "Return an animator of planet waves with given params."
@@ -134,19 +132,21 @@
              stage (/ t duration)
              r (+ min-r (* stage (- max-r min-r)))
              alpha (- 0.5 (* stage 0.5))]
-         [{:type :circle
-           :args (normal-arg-wrapper x y r)
-           :rotation nil
-           :color (drawer/rgba (first color) (second color) (last color) alpha)}])))
+         {:data [{:type :circle
+                         :args (normal-arg-wrapper x y r)
+                         :rotation nil
+                  :color (drawer/rgba (first color) (second color) (last color) alpha)}]
+          :ani [:self]})))
 
 (defn planet-animator
   "Returns an animator of a planet with given params."
   [x y r color]
   (fn [_ _]
-    [{:type :circle
-      :args (normal-arg-wrapper x y r)
-      :rotation nil
-      :color (apply drawer/rgba color)}]))
+    {:data [{:type :circle
+             :args (normal-arg-wrapper x y r)
+             :rotation nil
+             :color (apply drawer/rgba color)}]
+     :ani [:self]}))
 
 ;; TODO An animator has to render recording to changing status instead of fixed values
 ;; So change the functions to receive functions in place of values
@@ -154,27 +154,29 @@
 (defn create-planet
   "Creates and add a planet."
   [x y r color]
-  (add-animators (planet-animator x y r color)
-                 (planet-waves-animator x y
-                                        r (* r 2)
-                                        2500
-                                        (take 3 color))))
+  [(planet-animator x y r color)
+   (planet-waves-animator x y
+                          r (* r 2)
+                          2500
+                          (take 3 color))])
 
 (defn partition-animator
   "Returns an animator displaying a moving partition."
   [x y r color end-x end-y duration]
   (fn [dr _]
     (if (> dr duration)
-      nil
+      {:data []
+       :ani []}
       (let [stage (/ dr duration)
            delta-x (- end-x x)
            delta-y (- end-y y)
            now-x (+ x (* delta-x stage))
            now-y (+ y (* delta-y stage))]
-       [{:type :circle
-         :args (normal-arg-wrapper now-x now-y r)
-         :rotation nil
-         :color (apply drawer/rgba (concat color [(- 1 stage)]))}]))))
+       {:data [{:type :circle
+                :args (normal-arg-wrapper now-x now-y r)
+                :rotation nil
+                :color (apply drawer/rgba (concat color [(- 1 stage)]))}]
+        :ani [:self]}))))
 
 (defn partitions-generator
   "Returns a lazy seq of partition animators with given params.
@@ -235,8 +237,8 @@
                                            (calc/vec- (calc/vec* 1 v))
                                            800
                                            num)]
-      (add-temp-animators partitions)
-      ship)))
+      {:data ship
+       :ani (concat (gen-animators partitions) [:self])})))
 
 ;;(create-planet 0.5 0.5 0.1 [0 255 255 1])
 
@@ -255,34 +257,36 @@
   [interval]
   (swap! craft-status (fn [data] (map (partial normal-update-each interval) data))))
 
-(defn initialize-by-map!
-  "Initializes with map data given."
+(defn startup-animator
+  "Returns a startup animator with the map data given."
   [data]
-  (swap! craft-status #(:craft data))
-  (set! animators (atom []))
-  (let [planets (:planets data)]
-    (doseq [{:keys [x y r color]} planets]
-      (create-planet x y r color)))
-  (let [craft (craft-animator #(first (deref craft-status)) normal-updater)]
-    (add-animator craft)))
+  (fn [_ _]
+    (set! animators (atom []))
+    (swap! craft-status #(:craft data))
+    (let [planets (:planets data)
+          pa (for [{:keys [x y r color]} planets] (create-planet x y r color))
+          pa (reduce concat pa)
+          craft-ani (craft-animator #(first @craft-status) normal-updater)]
+      {:data []
+       :ani (gen-animators (concat pa [craft-ani]))})))
 
-(initialize-by-map! simple-map)
+(defn startup-by-map!
+  "Clears up the animators and add a startup animator to animators."
+  [data]
+  (set! animators (atom []))
+  (let [animator (startup-animator data)]
+    (add-animator animator)))
+
+(startup-by-map! simple-map)
 
 (defn render-each
   "Returns render data of each animator."
   [{:keys [animator initial]} timestamp]
   (let [duration (- timestamp initial)
         interval (- timestamp @prev-timestamp)
-        data (animator duration interval)]
-    data))
-
-(defn filter-animators
-  "Filters the animators. This function will remove the animators returning nil,
-  with the results given. Returns a lazy seq."
-  [res ani]
-  (let [pairs (map list res ani)
-        pairs (filter #(-> (first %) nil? not) pairs)]
-    (map #(last %) pairs)))
+        data (animator duration interval)
+        new-anis (map #(if (= % :self) {:animator animator, :initial initial} %) (:ani data))]
+    (assoc data :ani new-anis)))
 
 (defn render
   "Updates current state and return render data for rendering."
@@ -290,12 +294,13 @@
   (when (= @prev-timestamp -1)
     (swap! prev-timestamp (fn [_] timestamp)))
   (let [res (map render-each @animators (repeat timestamp))
-        ret (reduce concat res)
-        tmp-res (map render-each @temp-animators (repeat timestamp))
-        tmp-ret (reduce concat tmp-res)]
+        datas (map :data res)
+        datas (reduce concat datas)
+        anis (map :ani res)
+        anis (reduce concat anis)]
     (swap! prev-timestamp (fn [_] timestamp))
-    (swap! temp-animators (partial filter-animators tmp-res))
-    (concat ret tmp-ret)))
+    (swap! animators (fn [_] anis))
+    datas))
 
 (defn onclick-handler
   "Handles the on click event"
