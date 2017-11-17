@@ -39,6 +39,21 @@
   [ctx color]
   (aset ctx "fillStyle" color))
 
+(defn set-font
+  "Changes the font of the canvas."
+  [ctx font]
+  (aset ctx "font" font))
+
+(defn center-text
+  "Draws text at the center of given position."
+  ([ctx text x y]
+   (center-text ctx text x y "1em serif" "black"))
+  ([ctx text x y font color]
+   (set-font ctx font)
+   (coloring ctx color)
+   (aset ctx "textAlign" "center")
+   (.fillText ctx text x y)))
+
 (defn prepare-background
   "Resets canvas and fill background."
   [info color]
@@ -77,8 +92,9 @@
   (.fill ctx))
 
 (def std-revealer {:rect fill-rect,
-                   :circle draw-circle
-                   :shape draw-shape})
+                   :circle draw-circle,
+                   :shape draw-shape,
+                   :text center-text})
 
 ;; example data format (in map):
 ;; {
@@ -100,4 +116,5 @@
     (let [{:keys [color]} rec]
       (when color
         (coloring ctx color)))
+    ;;(println rec)
     (apply (revealer (:type rec)) (conj (apply list (:args rec)) ctx))))

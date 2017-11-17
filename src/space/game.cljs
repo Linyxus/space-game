@@ -17,11 +17,19 @@
 ;; it can perform game data update and calculation as well.
 ;; It can even yields no rendering datas.
 
+(defn hello [x y]
+  (println "You've clicked " x " " y))
+
 (def prev-timestamp (atom -1))
 (def animators (atom []))
 (def temp-animators (atom []))
 (def craft-status (atom []))
 (def planets (atom []))
+(def mouse-region (atom [{:x 0.1,
+                          :y 0.1,
+                          :w 0.15,
+                          :h 0.05
+                          :handler hello}]))
 
 (def simple-map {:planets [{:x 0.5, :y 0.5, :r 0.05, :m 0.1, :color [0 255 255 1]}]
                  :craft [{:x 0.5, :y 0.0, :m 10,
@@ -30,6 +38,8 @@
 (def coord-orig->frame nil)
 (def coord-frame->orig nil)
 (def coord-orig:frame nil)
+(def coord-orig-w nil)
+(def coord-orig-h nil)
 
 (defn random-color
   "Returns a random color in a array."
@@ -66,12 +76,14 @@
 (defn init-coord!
   "Initialize the coordinate system."
   [width height]
+  (set! coord-orig-w width)
+  (set! coord-orig-h height)
   (let [[o-f o->f f->o] (coord-fun width height)]
     (set! coord-orig:frame o-f)
     (set! coord-orig->frame o->f)
     (set! coord-frame->orig f->o)))
 
-(init-coord! 100 100) ; debug time: temporary usage
+(init-coord! 500 200) ; debug time: temporary usage
 
 (defn normal-arg-wrapper
   "Returns a vector of transformed coordinate values and size values.
@@ -237,6 +249,24 @@
       {:data ship
        :ani (concat (gen-animators partitions) [:self])})))
 
+(defn button-animator
+  "Returns a button animator rendering a button at given pos."
+  [text x y w h color]
+  (fn [_ _]
+    {:data [{:type :rect,
+             :args (normal-arg-wrapper x y w h)
+             :rotation nil
+             :color (apply drawer/rgba color)}
+            {:type :text,
+             :args (concat [text] (normal-arg-wrapper (+ x (/ w 2))
+                                                      (+ y (/ h 2))))}]
+     :ani [:self]}))
+
+(defn default-button-animator
+  "Returns a default button animator."
+  [text x y]
+  (button-animator text x y 0.15 0.05 [199 211 232 1]))
+
 ;;(create-planet 0.5 0.5 0.1 [0 255 255 1])
 
 (defn generate-forcefields
@@ -278,7 +308,10 @@
           pa (reduce concat pa)
           craft-ani (craft-animator #(first @craft-status) normal-updater)]
       {:data []
-       :ani (gen-animators (concat pa [craft-ani]))})))
+       :ani (gen-animators (concat pa [craft-ani
+                                       (default-button-animator
+                                        "Hello"
+                                        0.1 0.1)]))})))
 
 (defn startup-by-map!
   "Clears up the animators and add a startup animator to animators."
@@ -312,6 +345,11 @@
     (swap! animators (fn [_] anis))
     datas))
 
+(defn in-region?
+  "Checks if the point is inside the region."
+  [[mx my] {:keys [x y w h]}]
+  (and (<= (- mx x) w) (<= (- my y) h)))
+
 (defn onclick-handler
   "Handles the on click event"
   [x y]
@@ -320,4 +358,7 @@
     (add-animator (fn [_ _] {:data [],
                              :ani (gen-animators
                                    (create-planet
-                                    fx fy (* 0.1 (rand)) (random-color)))}))))
+                                    fx fy (* 0.1 (rand)) (random-color)))}))
+    (doall (map (fn [re]
+                   (when (in-region? [fx fy] re)
+                    ((:handler re) fx fy))) @mouse-region))))

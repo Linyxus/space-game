@@ -27,7 +27,6 @@
 
 (game/init-coord! (:width cvs-info) (:height cvs-info))
 
-
 (js/setInterval #(do
                    (drawer/reset-canvas cvs-info)
                    (drawer/render-data ctxt
@@ -35,6 +34,8 @@
                                        drawer/std-revealer)) 10)
 
 ;;(drawer/coloring ctxt "#1a237e")
+;;(drawer/set-font ctxt "1em serif")
+;;(drawer/center-text ctxt "Hello World" 500 500)
 ;;(drawer/draw-circle ctxt 100 100 10)
 ;;(drawer/rotating ctxt 0.7853 100 100)
 ;;(drawer/draw-shape ctxt [-30 -20] [30 -20] [30 20] [-30 20])
