@@ -24,6 +24,8 @@
 (def animators (atom []))
 (def temp-animators (atom []))
 (def craft-status (atom []))
+(def craft-a (atom 0))
+(def craft-a-angle (atom 0))
 (def planets (atom []))
 (def mouse-region (atom [{:x 0.1,
                           :y 0.1,
@@ -31,8 +33,8 @@
                           :h 0.05
                           :handler hello}]))
 
-(def simple-map {:planets [{:x 0.5, :y 0.5, :r 0.05, :m 0.1, :color [0 255 255 1]}]
-                 :craft [{:x 0.5, :y 0.0, :m 10,
+(def simple-map {:planets [{:x 0.5, :y 0.5, :r 0.05, :m 10, :color [0 255 255 1]}]
+                 :craft [{:x 0.5, :y 0.3, :m 10,
                           :v [0.15 0], :a [0 0]}]})
 
 (def coord-orig->frame nil)
@@ -276,14 +278,43 @@
          (calc/gravity-forcefield x y m))
        planets))
 
+(defn new-acc
+  "Returns the craft status of new acc."
+  [cs acc]
+  (let [{:keys [v]} cs
+        a (calc/vec-by-length v acc)
+        a (calc/rotated-vec a (* @craft-a-angle calc/PI))]
+    (assoc cs :a a)))
+
 (defn normal-updater
   "The data updater agent for the craft animator."
   [interval]
+  (swap! craft-status #(map new-acc % (repeat @craft-a)))
   (swap! craft-status #(calc/next-state-period
                         {:objects %
                          :forcefields (generate-forcefields @planets)}
                         (/ interval 1000)
                         0.01)))
+
+(defn text-animator
+  "Returns a simple text label animator."
+  [provider x y]
+  (fn [_ _]
+    {:data [{:type :text,
+             :args (concat [(provider)] (normal-arg-wrapper x y))}]
+     :ani [:self]}))
+
+(defn current-info
+  "Returns the current info string."
+  []
+  (let [craft (first @craft-status)]
+    (str "Acc value: " @craft-a
+         ", Acc angle: " @craft-a-angle "pi")))
+
+(def info-label
+  (text-animator current-info 0.5 0.05))
+
+(info-label 0 0)
 
 (defn startup-animator
   "Returns a startup animator with the map data given."
@@ -297,7 +328,7 @@
           pa (reduce concat pa)
           craft-ani (craft-animator #(first @craft-status) normal-updater)]
       {:data []
-       :ani (gen-animators (concat pa [craft-ani]))})))
+       :ani (gen-animators (concat pa [craft-ani info-label]))})))
 
 (defn startup-by-map!
   "Clears up the animators and add a startup animator to animators."
@@ -349,7 +380,15 @@
                    (when (in-region? [fx fy] re)
                      ((:handler re) fx fy))) @mouse-region))))
 
+(def da 0.001)
+(def da-angle 0.1)
+
 (defn keydown-handler
   "Handles the keydown event."
   [k]
-  (println k))
+  (condp = k
+    :up (swap! craft-a #(+ % da))
+    :down (swap! craft-a #(if (> % 0) (- % da) 0))
+    :left (swap! craft-a-angle #(max -0.5 (- % da-angle)))
+    :right (swap! craft-a-angle #(min 0.5 (+ % da-angle)))
+    (println k)))

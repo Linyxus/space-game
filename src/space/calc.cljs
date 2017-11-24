@@ -88,6 +88,14 @@
       (- angle)
       angle)))
 
+(defn rotated-vec
+  "Returns the vector rotated counter-clockwise by given angle."
+  [[x y] angle]
+  (let [cos (.cos js/Math angle)
+        sin (.sin js/Math angle)]
+    [(- (* x cos) (* y sin))
+     (+ (* x sin) (* y cos))]))
+
 (defn vec-by-length
   "Returns a new vector of given length having the same direction with given."
   [v len]
