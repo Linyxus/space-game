@@ -259,7 +259,7 @@
              :color (apply drawer/rgba color)}
             {:type :text,
              :args (concat [text] (normal-arg-wrapper (+ x (/ w 2))
-                                                      (+ y (/ h 2))))}]
+                                                      (+ y (/ h 2) 0.01)))}]
      :ani [:self]}))
 
 (defn default-button-animator
@@ -276,25 +276,14 @@
          (calc/gravity-forcefield x y m))
        planets))
 
-(def simple-forcefields (generate-forcefields (:planets simple-map)))
-
-'(defn normal-update-each
-  "Returns the updated status of given craft data."
-  [interval data]
-  (let [{:keys [x y v a]} data
-        sec (/ interval 1000)
-        vv (calc/vec+ v (calc/vec* sec a))
-        [dx dy] (calc/vec* sec vv)
-        [xx yy] (calc/vec+ [dx dy] [x y])]
-    (assoc data :v vv :x xx :y yy)))
-
 (defn normal-updater
   "The data updater agent for the craft animator."
   [interval]
-  (swap! craft-status #(calc/next-state
+  (swap! craft-status #(calc/next-state-period
                         {:objects %
                          :forcefields (generate-forcefields @planets)}
-                        (/ interval 1000))))
+                        (/ interval 1000)
+                        0.01)))
 
 (defn startup-animator
   "Returns a startup animator with the map data given."
@@ -308,10 +297,7 @@
           pa (reduce concat pa)
           craft-ani (craft-animator #(first @craft-status) normal-updater)]
       {:data []
-       :ani (gen-animators (concat pa [craft-ani
-                                       (default-button-animator
-                                        "Hello"
-                                        0.1 0.1)]))})))
+       :ani (gen-animators (concat pa [craft-ani]))})))
 
 (defn startup-by-map!
   "Clears up the animators and add a startup animator to animators."
@@ -361,4 +347,9 @@
                                     fx fy (* 0.1 (rand)) (random-color)))}))
     (doall (map (fn [re]
                    (when (in-region? [fx fy] re)
-                    ((:handler re) fx fy))) @mouse-region))))
+                     ((:handler re) fx fy))) @mouse-region))))
+
+(defn keydown-handler
+  "Handles the keydown event."
+  [k]
+  (println k))

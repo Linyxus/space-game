@@ -74,6 +74,11 @@
   [v1 v2]
   (arccos (cos-of v1 v2)))
 
+(defn floor
+  "A wrapper of Math.floor"
+  [x]
+  (.floor js/Math x))
+
 (defn rotation-by-vector
   "Returns the clockwice rotation degree from x-axis of the vector."
   [v]
@@ -127,7 +132,18 @@
   "Returns the next state by given data."
   [data dt]
   (let [{:keys [objects forcefields]} data]
-    (map next-state-each objects
-         (repeat forcefields)
-         (repeat dt))))
+    {:objects (map next-state-each objects
+                   (repeat forcefields)
+                   (repeat dt))
+     :forcefields forcefields}))
+
+(defn next-state-period
+  "Returns the next state after a period using given interval."
+  [data duration dt]
+  (let [t (floor (/ duration dt))
+        r (- duration (* t dt))
+        state1 (or (last (take t (iterate #(next-state % dt) data)))
+                  data)
+        state2 (next-state state1 dt)]
+    (:objects state2)))
 

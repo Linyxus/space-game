@@ -31,7 +31,7 @@
                    (drawer/reset-canvas cvs-info)
                    (drawer/render-data ctxt
                                        (game/render (drawer/now))
-                                       drawer/std-revealer)) 10)
+                                       drawer/std-revealer)) 20)
 
 ;;(drawer/coloring ctxt "#1a237e")
 ;;(drawer/set-font ctxt "1em serif")
@@ -42,6 +42,15 @@
 ;;(drawer/reset-transforms)
 ;;(drawer/draw-shape ctxt [80 80] [120 80] [120 120] [80 120])
 
+(def key-map
+  {87 :up, 119 :up, 65 :left, 68 :right,
+   83 :down, 97 :left, 100 :right, 115 :down})
+
+(defn key-of
+  "Returns the key of the given event."
+  [e]
+  (key-map (.-keyCode e)))
+
 (defn handle-click
   "Handles the click event."
   [e]
@@ -49,7 +58,13 @@
         y (- (.-pageY e) (.-offsetTop canvas-dom))]
     (game/onclick-handler x y)))
 
+(defn handle-keydown
+  "Handles the keydown event."
+  [e]
+  (game/keydown-handler (key-of e)))
+
 (.addEventListener canvas-dom "click" handle-click)
+(.addEventListener js/document "keydown" handle-keydown)
 
 (defn on-js-reload []
   ;; optionally touch your app-state to force rerendering depending on
