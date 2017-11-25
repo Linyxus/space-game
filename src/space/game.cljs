@@ -22,10 +22,7 @@
 
 (def prev-timestamp (atom -1))
 (def animators (atom []))
-(def temp-animators (atom []))
 (def craft-status (atom []))
-(def craft-a (atom 0))
-(def craft-a-angle (atom 0))
 (def planets (atom []))
 (def mouse-region (atom [{:x 0.1,
                           :y 0.1,
@@ -35,7 +32,9 @@
 
 (def simple-map {:planets [{:x 0.5, :y 0.5, :r 0.05, :m 10, :color [0 255 255 1]}]
                  :craft [{:x 0.5, :y 0.3, :m 10,
-                          :v [0.15 0], :a [0 0]}]})
+                          :v [0.15 0], :a [0 0],
+                          :a-value 0,
+                          :a-angle 0}]})
 
 (def coord-orig->frame nil)
 (def coord-frame->orig nil)
@@ -224,9 +223,7 @@
   (fn [duration interval]
     (updater interval)
     (let [data (provider)
-          {:keys [x y v a]} data
-          v-angle (calc/rotation-by-vector v)
-          a-angle (calc/rotation-by-vector a)
+          {:keys [x y v a a-value a-angle]} data
           ship [(rotating-shape-data-wrapper
                  {:type :shape,
                   :args (shape-arg-wrapper [(- x 0.02) (- y 0.03)]
@@ -237,7 +234,9 @@
                                            [(+ x 0.01) (+ y 0.02)]
                                            [x (+ y 0.03)]
                                            [(- x 0.02) (+ y 0.03)]),
-                  :rotation (rotation-wrapper {:angle v-angle, :cx x, :cy y}),
+                  :rotation (rotation-wrapper {:angle (* a-angle calc/PI),
+                                               :cx x,
+                                               :cy y}),
                   :color "#1a237e"})
                 {:type :circle,
                  :args (normal-arg-wrapper x y 0.01)
@@ -245,7 +244,7 @@
                  :color "white"}]
           num (if (> (rand) 0.80) 1 0)
           partitions (partitions-generator x y 0.01 0.0025
-                                           (calc/vec- (calc/vec* 1 v))
+                                           (calc/vec- (calc/vec* 5 a))
                                            800
                                            num)]
       {:data ship
@@ -280,16 +279,16 @@
 
 (defn new-acc
   "Returns the craft status of new acc."
-  [cs acc]
-  (let [{:keys [v]} cs
-        a (calc/vec-by-length v acc)
-        a (calc/rotated-vec a (* @craft-a-angle calc/PI))]
+  [cs]
+  (let [{:keys [a-value a-angle]} cs
+        a (calc/vec-by-length [1 0] a-value)
+        a (calc/rotated-vec a (* a-angle calc/PI))]
     (assoc cs :a a)))
 
 (defn normal-updater
   "The data updater agent for the craft animator."
   [interval]
-  (swap! craft-status #(map new-acc % (repeat @craft-a)))
+  (swap! craft-status #(map new-acc % (repeat 0)))
   (swap! craft-status #(calc/next-state-period
                         {:objects %
                          :forcefields (generate-forcefields @planets)}
@@ -308,13 +307,11 @@
   "Returns the current info string."
   []
   (let [craft (first @craft-status)]
-    (str "Acc value: " @craft-a
-         ", Acc angle: " @craft-a-angle "pi")))
+    (str "Acc value: " (:a-value craft)
+         ", Acc angle: " (:a-angle craft) "pi")))
 
 (def info-label
   (text-animator current-info 0.5 0.05))
-
-(info-label 0 0)
 
 (defn startup-animator
   "Returns a startup animator with the map data given."
@@ -380,15 +377,35 @@
                    (when (in-region? [fx fy] re)
                      ((:handler re) fx fy))) @mouse-region))))
 
-(def da 0.001)
-(def da-angle 0.1)
+(def da 0.01)
+(def da-angle 0.05)
+
+(defn craft-modifier
+  [k mod]
+  (fn [cs]
+    (assoc cs k (mod (k cs)))))
 
 (defn keydown-handler
   "Handles the keydown event."
   [k]
   (condp = k
-    :up (swap! craft-a #(+ % da))
-    :down (swap! craft-a #(if (> % 0) (- % da) 0))
-    :left (swap! craft-a-angle #(max -0.5 (- % da-angle)))
-    :right (swap! craft-a-angle #(min 0.5 (+ % da-angle)))
+    :up (swap! craft-status #(map (craft-modifier :a-value
+                                                  (fn [x] (+ x da)))
+                                  %))
+    :down (swap! craft-status #(map (craft-modifier :a-value
+                                                    (fn [x]
+                                                      (if (> x 0)
+                                                        (- x da)
+                                                        0)))
+                                    %))
+    :left (swap! craft-status #(map (craft-modifier :a-angle
+                                                    (fn [x]
+                                                      (mod (- x -2 da-angle)
+                                                           2)))
+                                    %))
+    :right (swap! craft-status #(map (craft-modifier
+                                        :a-angle
+                                        (fn [x]
+                                          (mod (+ x da-angle) 2)))
+                                     %))
     (println k)))

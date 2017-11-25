@@ -31,7 +31,7 @@
                    (drawer/reset-canvas cvs-info)
                    (drawer/render-data ctxt
                                        (game/render (drawer/now))
-                                       drawer/std-revealer)) 20)
+                                       drawer/std-revealer)) 17)
 
 ;;(drawer/coloring ctxt "#1a237e")
 ;;(drawer/set-font ctxt "1em serif")
