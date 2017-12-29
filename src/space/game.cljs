@@ -268,6 +268,8 @@
   [text x y]
   (button-animator text x y 0.15 0.05 [199 211 232 1]))
 
+;; TODO: write button-click system
+
 ;;(create-planet 0.5 0.5 0.1 [0 255 255 1])
 
 (defn generate-forcefields
